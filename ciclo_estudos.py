@@ -26,16 +26,22 @@ def SomarOsValoresDasDificuldades():
         total_soma_dificuldades += dificuldade_atual
 
 def CalcularTempoDeEstudoBaseadoEmDiasEHoras():
-    global tempo_de_estudo_em_horas
+    global calculo_horas_materia
     dias = int(input("Quantos Dias você quer estudar por semana: "))
     horas = int(input("Quantas Horas por dia você quer estudar: "))
-    calculo_de_tempo = dias * horas
-    tempo_de_estudo_em_horas = calculo_de_tempo
+    calculo_horas_semanais = dias * horas
+    calculo_horas_materia = calculo_horas_semanais / total_soma_dificuldades
 
-def AdicionarTempoDeEstudoACadaMateria():
-    total_da_divisao = tempo_de_estudo_em_horas / total_soma_dificuldades
+def AdicionarHorasDeEstudoACadaMateria():
     for i in range(0,len(materias)):
-        pass
+        materias[i]["Horas"] = round(materias[i]["Dificuldade"] * calculo_horas_materia)
+
+def CriarTabelaDeHorasDeCadaMateria():
+    for i in range(0,len(materias)):
+        quantidade_de_horas = materias[i]["Horas"]
+        quadradinhos = "[]" * quantidade_de_horas
+        print(f"{materias[i]['Nome']}: {quadradinhos}")
+
 
 
 
@@ -43,5 +49,5 @@ AdicionarMateriasAoCicloDeEstudos()
 AdicionarDificuldadeNaTarefa()
 SomarOsValoresDasDificuldades()
 CalcularTempoDeEstudoBaseadoEmDiasEHoras()
-print(tempo_de_estudo_em_horas)
-
+AdicionarHorasDeEstudoACadaMateria()
+CriarTabelaDeHorasDeCadaMateria()
