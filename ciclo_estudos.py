@@ -1,6 +1,12 @@
 import datetime as dt 
 
 materias = []
+def ChecandoDiaDaSemana():
+    hoje = dt.datetime.now().date()
+    dia_da_semana = hoje.weekday()
+    if dia_da_semana == 0:
+        for i in range(0,len(materias)):
+            materias[i]["Estudadas"] = 0
 
 def AdicionarMateriasAoCicloDeEstudos():
     if len(materias) == 0:
@@ -13,7 +19,8 @@ def AdicionarMateriasAoCicloDeEstudos():
                 "Dificuldade": 0,
                 "Horas": 0,
                 "Estudadas": 0,
-                "Objetivo": objetivo
+                "Objetivo": objetivo,
+                "Concluida": False
             }
             materias.append(materia)
     else:
@@ -24,7 +31,8 @@ def AdicionarMateriasAoCicloDeEstudos():
             "Dificuldade": 0,
             "Horas": 0,
             "Estudadas": 0,
-            "Objetivo": objetivodamateria
+            "Objetivo": objetivodamateria,
+            "Concluida": False
         } 
         materias.append(materia)
 
@@ -64,12 +72,19 @@ def VerificarQuantidadeDeHorasEstudadasPorMateria(): ##Concertar isso aqui
 
 def CriarTabelaDeHorasDeCadaMateria():
     for i in range(0,len(materias)):
-        quantidade_de_horas = materias[i]["Horas"] - materias[i]["Estudadas"]
-        quadradinhos = "[]" * quantidade_de_horas
-        print(f"{materias[i]['Nome']}: {quadradinhos}")
+        if materias[i]["Concluida"] == False:
+            quantidade_de_horas = materias[i]["Horas"] - materias[i]["Estudadas"]
+            quadradinhos = "[]" * quantidade_de_horas
+            print(f"{materias[i]['Nome']}: {quadradinhos}")
+        else:
+            print(f"{materias[i]['Nome']}: Concluida")
 
 def AdicionarHoraEstudada():
     nome_daMateria = input("Qual o Nome da materia que você quer concluir? ")
+    for i in range(0,len(materias)):
+        if nome_daMateria == materias[i]["Nome"]:
+            if materias[i]["Concluida"] == True:
+                print("Você ja conclui todas as Horas dessa materia")
     quantidade_de_horas = int(input("Quantas horas você quer concluir? "))
     for i in range(0,len(materias)):
         if nome_daMateria == materias[i]["Nome"]:
@@ -82,10 +97,14 @@ def AlterarDificuldadeDeMateria():
             materias[i]["Dificuldade"] = int(input(f"Qual a Dificuldade da Materia {materias[i]['Nome']}: "))
 
 def AlterarHorasDeEstudoDeMateria():
-    nome_materia = input("Qual Materia você quer alterar: ")
-    for i in range(0,len(materias)):
+    print("Atenção: Alterar o tempo de estudo de uma materia zera as horas estudadas desta materia automaticamente")
+    reposta = int(input("Tem certeza que quer Alterar? [1]- Sim [2]- Não"))
+    if reposta == 1:
+        nome_materia = input("Qual Materia você quer alterar: ")
+        for i in range(0,len(materias)):
             if materias[i]["Nome"] == nome_materia:
                 materias[i]["Horas"] = int(input(f"Quantas Horas você quer estudar a Materia {materias[i]['Nome']}: "))
+                materias[i]["Estudadas"] = 0
 
 def AlterarObjetivoDaMateria():
     nome_materia = input("Digite o Nome da materia que você quer Alterar: ")
@@ -132,7 +151,7 @@ while (ativo):
     print("8. Alterar Tempo de Estudo")
     print("9. Sair")
     escolha = int(input("Opção: "))
-    print("================================================")
+    print("===============================================")
     match(escolha):
         case 1:
             AdicionarMateriasAoCicloDeEstudos()
@@ -162,5 +181,7 @@ while (ativo):
         case 9:
             print("Encerrando Sistema")
             ativo = False
+        case 10:
+            ChecandoDiaDaSemana()
         case _:
             print("Opção Invalida")
