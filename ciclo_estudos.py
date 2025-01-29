@@ -1,12 +1,89 @@
 import datetime as dt 
+import mysql.connector
+import json
 
 materias = []
+ultima_atualizacao = None
+
+with open("config_db.json", "r") as config_file:
+    config = json.load(config_file)
+
+# Conectar ao banco de dados usando os dados do JSON
+conexao = mysql.connector.connect(
+    host=config["host"],
+    user=config["user"],
+    password=config["password"],
+    database=config["database"]
+)
+
+if conexao.is_connected():
+    print("Conexão estabelecida")
+
+cursor = conexao.cursor()
+
+def CarregarMateriasDoBancoDeDados():
+    cursor.execute("SELECT * FROM materias")
+    resultados = cursor.fetchall()
+    materias.clear()
+    for resultado in resultados:
+        materia = {
+            "Nome": resultado[1],
+            "Dificuldade": resultado[2],
+            "Horas": resultado[3],
+            "Estudadas": resultado[4],
+            "Objetivo": resultado[5],
+            "Concluida": resultado[6]
+        }
+        materias.append(materia)
+
+CarregarMateriasDoBancoDeDados()
+
+def AdicionarMateriaAoBancoDeDados(materia):
+    sql = """
+    INSERT INTO materias (nome, dificuldade, horas, estudadas, objetivo, concluida)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    valores = (
+        materia["Nome"],
+        materia["Dificuldade"],
+        materia["Horas"],
+        materia["Estudadas"],
+        materia["Objetivo"],
+        materia["Concluida"]
+    )
+    cursor.execute(sql, valores)
+    conexao.commit()
+
+def AtualizarMateriaNoBancoDeDados(materia):
+    sql = """
+    UPDATE materias
+    SET dificuldade = %s, horas = %s, estudadas = %s, objetivo = %s, concluida = %s
+    WHERE nome = %s
+    """
+    valores = (
+        materia["Dificuldade"],
+        materia["Horas"],
+        materia["Estudadas"],
+        materia["Objetivo"],
+        materia["Concluida"],
+        materia["Nome"]
+    )
+    cursor.execute(sql, valores)
+    conexao.commit()
+
+def ExcluirMateriaDoBancoDeDados(nome_materia):
+    sql = "DELETE FROM materias WHERE nome = %s"
+    cursor.execute(sql, (nome_materia,))
+    conexao.commit()
+
+
 def ChecandoDiaDaSemana():
     hoje = dt.datetime.now().date()
     dia_da_semana = hoje.weekday()
-    if dia_da_semana == 0:
+    if dia_da_semana == 0 and ultima_atualizacao != hoje:
         for i in range(0,len(materias)):
             materias[i]["Estudadas"] = 0
+            #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AdicionarMateriasAoCicloDeEstudos():
     if len(materias) == 0:
@@ -23,6 +100,7 @@ def AdicionarMateriasAoCicloDeEstudos():
                 "Concluida": False
             }
             materias.append(materia)
+            #AdicionarMateriaAoBancoDeDados(materia)
     else:
         nomedamateria = input("Nome da nova materia: ")
         objetivodamateria = input(f"Qual o objetivo da materia {nomedamateria}: ")
@@ -35,6 +113,7 @@ def AdicionarMateriasAoCicloDeEstudos():
             "Concluida": False
         } 
         materias.append(materia)
+        #AdicionarMateriaAoBancoDeDados()
 
 def AdicionarDificuldadeNaMateria():
     if len(materias) > 0:
@@ -42,6 +121,7 @@ def AdicionarDificuldadeNaMateria():
         for i in range(0,len(materias)):
             if materias[i]["Dificuldade"] == 0:
                 materias[i]["Dificuldade"] = int(input(f"Qual a Dificuldade da Materia {materias[i]['Nome']}: "))
+                #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def SomarOsValoresDasDificuldades():
     global total_soma_dificuldades
@@ -61,23 +141,24 @@ def AdicionarHorasDeEstudoACadaMateria():
     calculo_horas_materia = round(calculo_horas_semanais / total_soma_dificuldades)
     for i in range(0,len(materias)):
         materias[i]["Horas"] = materias[i]["Dificuldade"] * calculo_horas_materia
-
-def VerificarQuantidadeDeHorasEstudadasPorMateria(): ##Concertar isso aqui
-    quadradinhos = ""
-    for i in range(0,len(materias)):
-        if materias[i]["Estudadas"] > 0:
-            quadradinhos = "[x]" * materias[i]["Estudadas"]
-    return quadradinhos
-
+        #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def CriarTabelaDeHorasDeCadaMateria():
-    for i in range(0,len(materias)):
+    for i in range(0, len(materias)):
         if materias[i]["Concluida"] == False:
-            quantidade_de_horas = materias[i]["Horas"] - materias[i]["Estudadas"]
-            quadradinhos = "[]" * quantidade_de_horas
+            horas_estudadas = materias[i]["Estudadas"]
+            horas_totais = materias[i]["Horas"]
+            quadradinhos = "[x]" * horas_estudadas + "[]" * (horas_totais - horas_estudadas)
             print(f"{materias[i]['Nome']}: {quadradinhos}")
         else:
-            print(f"{materias[i]['Nome']}: Concluida")
+            print(f"{materias[i]['Nome']}: Concluída")
+
+def ExibirObjetivos():
+    if len(materias) > 0:
+        for i in range(len(materias)):
+            print(f"{materias[i]['Nome']}: {materias[i]['Objetivo']}")
+    else:
+        print("Você não tem Materias")
 
 def AdicionarHoraEstudada():
     nome_daMateria = input("Qual o Nome da materia que você quer concluir? ")
@@ -89,12 +170,14 @@ def AdicionarHoraEstudada():
     for i in range(0,len(materias)):
         if nome_daMateria == materias[i]["Nome"]:
             materias[i]["Estudadas"] = quantidade_de_horas
+            #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AlterarDificuldadeDeMateria():
     nome_materia = input("Qual Materia você quer alterar: ")
     for i in range(0,len(materias)):
         if materias[i]["Nome"] == nome_materia:
             materias[i]["Dificuldade"] = int(input(f"Qual a Dificuldade da Materia {materias[i]['Nome']}: "))
+            #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AlterarHorasDeEstudoDeMateria():
     print("Atenção: Alterar o tempo de estudo de uma materia zera as horas estudadas desta materia automaticamente")
@@ -105,28 +188,36 @@ def AlterarHorasDeEstudoDeMateria():
             if materias[i]["Nome"] == nome_materia:
                 materias[i]["Horas"] = int(input(f"Quantas Horas você quer estudar a Materia {materias[i]['Nome']}: "))
                 materias[i]["Estudadas"] = 0
+                #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AlterarObjetivoDaMateria():
     nome_materia = input("Digite o Nome da materia que você quer Alterar: ")
     for i in range(0,len(materias)):
         if materias[i]["Nome"] == nome_materia:
             materias[i]["Objetivo"] = input(f"Qual o objetivo da materia {nome_materia}: ")
+            #AtualizarMateriaNoBancoDeDados(materias[i])
 
 def ConcluirObjetivoDaMateria():
     nome_materia = input("Digite o Nome da materia que você quer Concluir: ")
     escolha = int(input("Você quer Alterar o objetivo ou concluir a Materia? [1]- Alterar [2]- Concluir"))
     if escolha == 1:
         AlterarObjetivoDaMateria()
-    else:
         for i in range(0,len(materias)):
             if materias[i]["Nome"] == nome_materia:
+                pass
+                #AtualizarMateriaNoBancoDeDados(materias[i])
+    else:
+        for i in range(len(materias) -1, -1,-1):
+            if materias[i]["Nome"] == nome_materia:
                 materias.pop(i)
+                #ExcluirMateriaDoBancoDeDados(materias[i])
 
 def ExcluirMateria():
     nome_materia = input("Digite o Nome da materia que você quer excluir: ")
     for i in range(0,len(materias)):
         if nome_materia == materias[i]["Nome"]:
             materias.pop(i)
+            #ExcluirMateriaDoBancoDeDados(materias[i])
     print(f"Materia Excluida {nome_materia}")
 
 
@@ -140,16 +231,19 @@ CriarTabelaDeHorasDeCadaMateria()
 
 ativo = True
 while (ativo):
+    ChecandoDiaDaSemana()
     print("==================== MENU ====================")
     print("1. Adicionar Materia ao Ciclo de Estudos") 
     print("2. Excluir Materia")
     print("3. Exibir Materia")
-    print("4. Alterar Objetivo da materia")
-    print("5. Alterar Horas de Estudo de uma materia")
-    print("6. Concluir Hora")
-    print("7. Concluir Objetivo")
-    print("8. Alterar Tempo de Estudo")
-    print("9. Sair")
+    print("4. Exibir Objetivos")
+    print("5. Alterar Objetivo da materia")
+    print("6. Alterar Horas de Estudo de uma materia")
+    print("7. Alterar Dificuldade da Materia")
+    print("8. Concluir Hora")
+    print("9. Concluir Objetivo")
+    print("10. Alterar Tempo de Estudo")
+    print("11. Sair")
     escolha = int(input("Opção: "))
     print("===============================================")
     match(escolha):
@@ -166,22 +260,26 @@ while (ativo):
             AdicionarHorasDeEstudoACadaMateria()
         case 3:
             CriarTabelaDeHorasDeCadaMateria() 
-        case 4: 
+        case 4:
+            ExibirObjetivos()
+        case 5: 
             AlterarObjetivoDaMateria()
-        case 5:
+        case 6:
             AlterarHorasDeEstudoDeMateria()
-        case 6: 
-            AdicionarHoraEstudada()
         case 7:
-            ConcluirObjetivoDaMateria()
+            AlterarDificuldadeDeMateria()
         case 8:
+            AdicionarHoraEstudada()
+        case 9:
+            ConcluirObjetivoDaMateria()
+        case 10:
             CalcularTempoDeEstudoBaseadoEmDiasEHoras()
             SomarOsValoresDasDificuldades()
             AdicionarHorasDeEstudoACadaMateria()
-        case 9:
+        case 11:
             print("Encerrando Sistema")
+            cursor.close()
+            conexao.close()
             ativo = False
-        case 10:
-            ChecandoDiaDaSemana()
         case _:
             print("Opção Invalida")
