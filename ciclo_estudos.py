@@ -1,11 +1,13 @@
 import datetime as dt 
 import mysql.connector
 import json
+import os 
 
+arquivo_inicializacao = "inicializado.txt"
 materias = []
 ultima_atualizacao = None
 
-with open("config_db.json", "r") as config_file:
+with open("Ciclo-de-Estudos/config_db.json", "r") as config_file:
     config = json.load(config_file)
 
 # Conectar ao banco de dados usando os dados do JSON
@@ -79,11 +81,14 @@ def ExcluirMateriaDoBancoDeDados(nome_materia):
 
 def ChecandoDiaDaSemana():
     hoje = dt.datetime.now().date()
+    global ultima_atualizacao
+    ultima_atualizacao = hoje
     dia_da_semana = hoje.weekday()
     if dia_da_semana == 0 and ultima_atualizacao != hoje:
         for i in range(0,len(materias)):
             materias[i]["Estudadas"] = 0
-            #AtualizarMateriaNoBancoDeDados(materias[i])
+            materias[i]["Concluida"] = False
+            AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AdicionarMateriasAoCicloDeEstudos():
     if len(materias) == 0:
@@ -100,7 +105,7 @@ def AdicionarMateriasAoCicloDeEstudos():
                 "Concluida": False
             }
             materias.append(materia)
-            #AdicionarMateriaAoBancoDeDados(materia)
+            AdicionarMateriaAoBancoDeDados(materia)
     else:
         nomedamateria = input("Nome da nova materia: ")
         objetivodamateria = input(f"Qual o objetivo da materia {nomedamateria}: ")
@@ -113,7 +118,7 @@ def AdicionarMateriasAoCicloDeEstudos():
             "Concluida": False
         } 
         materias.append(materia)
-        #AdicionarMateriaAoBancoDeDados()
+        AdicionarMateriaAoBancoDeDados(materia)
 
 def AdicionarDificuldadeNaMateria():
     if len(materias) > 0:
@@ -121,7 +126,7 @@ def AdicionarDificuldadeNaMateria():
         for i in range(0,len(materias)):
             if materias[i]["Dificuldade"] == 0:
                 materias[i]["Dificuldade"] = int(input(f"Qual a Dificuldade da Materia {materias[i]['Nome']}: "))
-                #AtualizarMateriaNoBancoDeDados(materias[i])
+                AtualizarMateriaNoBancoDeDados(materias[i])
 
 def SomarOsValoresDasDificuldades():
     global total_soma_dificuldades
@@ -141,7 +146,14 @@ def AdicionarHorasDeEstudoACadaMateria():
     calculo_horas_materia = round(calculo_horas_semanais / total_soma_dificuldades)
     for i in range(0,len(materias)):
         materias[i]["Horas"] = materias[i]["Dificuldade"] * calculo_horas_materia
-        #AtualizarMateriaNoBancoDeDados(materias[i])
+        AtualizarMateriaNoBancoDeDados(materias[i])
+
+def ChecagemDeConclusão():
+    if len(materias) > 0:
+        for i in range(0,len(materias)):
+            if materias[i]["Horas"] == materias[i]["Estudadas"]:
+                materias[i]["Concluida"] = True
+                AtualizarMateriaNoBancoDeDados(materias[i])
 
 def CriarTabelaDeHorasDeCadaMateria():
     for i in range(0, len(materias)):
@@ -162,22 +174,26 @@ def ExibirObjetivos():
 
 def AdicionarHoraEstudada():
     nome_daMateria = input("Qual o Nome da materia que você quer concluir? ")
-    for i in range(0,len(materias)):
-        if nome_daMateria == materias[i]["Nome"]:
-            if materias[i]["Concluida"] == True:
-                print("Você ja conclui todas as Horas dessa materia")
-    quantidade_de_horas = int(input("Quantas horas você quer concluir? "))
-    for i in range(0,len(materias)):
-        if nome_daMateria == materias[i]["Nome"]:
-            materias[i]["Estudadas"] = quantidade_de_horas
-            #AtualizarMateriaNoBancoDeDados(materias[i])
+    for materia in materias:
+        if nome_daMateria == materia["Nome"]:
+            if materia["Concluida"]:
+                print("Você já concluiu todas as horas dessa matéria.")
+                return
+            max_horas = materia["Horas"] - materia["Estudadas"]
+            quantidade_de_horas = int(input(f"Quantas horas você quer concluir? (Máx: {max_horas}) "))
+            quantidade_de_horas = min(quantidade_de_horas, max_horas)
+            materia["Estudadas"] += quantidade_de_horas
+            AtualizarMateriaNoBancoDeDados(materia)
+            print(f"{quantidade_de_horas} horas adicionadas a {materia['Nome']}.")
+            return
+    print("Matéria não encontrada.")
 
 def AlterarDificuldadeDeMateria():
     nome_materia = input("Qual Materia você quer alterar: ")
     for i in range(0,len(materias)):
         if materias[i]["Nome"] == nome_materia:
             materias[i]["Dificuldade"] = int(input(f"Qual a Dificuldade da Materia {materias[i]['Nome']}: "))
-            #AtualizarMateriaNoBancoDeDados(materias[i])
+            AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AlterarHorasDeEstudoDeMateria():
     print("Atenção: Alterar o tempo de estudo de uma materia zera as horas estudadas desta materia automaticamente")
@@ -188,14 +204,14 @@ def AlterarHorasDeEstudoDeMateria():
             if materias[i]["Nome"] == nome_materia:
                 materias[i]["Horas"] = int(input(f"Quantas Horas você quer estudar a Materia {materias[i]['Nome']}: "))
                 materias[i]["Estudadas"] = 0
-                #AtualizarMateriaNoBancoDeDados(materias[i])
+                AtualizarMateriaNoBancoDeDados(materias[i])
 
 def AlterarObjetivoDaMateria():
     nome_materia = input("Digite o Nome da materia que você quer Alterar: ")
     for i in range(0,len(materias)):
         if materias[i]["Nome"] == nome_materia:
             materias[i]["Objetivo"] = input(f"Qual o objetivo da materia {nome_materia}: ")
-            #AtualizarMateriaNoBancoDeDados(materias[i])
+            AtualizarMateriaNoBancoDeDados(materias[i])
 
 def ConcluirObjetivoDaMateria():
     nome_materia = input("Digite o Nome da materia que você quer Concluir: ")
@@ -205,33 +221,43 @@ def ConcluirObjetivoDaMateria():
         for i in range(0,len(materias)):
             if materias[i]["Nome"] == nome_materia:
                 pass
-                #AtualizarMateriaNoBancoDeDados(materias[i])
+                AtualizarMateriaNoBancoDeDados(materias[i])
     else:
         for i in range(len(materias) -1, -1,-1):
             if materias[i]["Nome"] == nome_materia:
                 materias.pop(i)
-                #ExcluirMateriaDoBancoDeDados(materias[i])
+                ExcluirMateriaDoBancoDeDados(materias[i])
 
 def ExcluirMateria():
     nome_materia = input("Digite o Nome da materia que você quer excluir: ")
-    for i in range(0,len(materias)):
+    for i in range(len(materias) - 1, -1, -1):
         if nome_materia == materias[i]["Nome"]:
+            ExcluirMateriaDoBancoDeDados(materias[i])
             materias.pop(i)
-            #ExcluirMateriaDoBancoDeDados(materias[i])
     print(f"Materia Excluida {nome_materia}")
 
 
+def InicializarCicloDeEstudos():
+    AdicionarMateriasAoCicloDeEstudos()
+    AdicionarDificuldadeNaMateria()
+    SomarOsValoresDasDificuldades()
+    CalcularTempoDeEstudoBaseadoEmDiasEHoras()
+    AdicionarHorasDeEstudoACadaMateria()
+    CriarTabelaDeHorasDeCadaMateria()
 
-AdicionarMateriasAoCicloDeEstudos()
-AdicionarDificuldadeNaMateria()
-SomarOsValoresDasDificuldades()
-CalcularTempoDeEstudoBaseadoEmDiasEHoras()
-AdicionarHorasDeEstudoACadaMateria()
-CriarTabelaDeHorasDeCadaMateria()
+
+if not os.path.exists(arquivo_inicializacao):
+    InicializarCicloDeEstudos()
+    # Cria o arquivo para marcar que o código já foi executado
+    with open(arquivo_inicializacao, "w") as arquivo:
+        arquivo.write("Inicializado")
+else:
+    print("Iniciando")
 
 ativo = True
 while (ativo):
     ChecandoDiaDaSemana()
+    ChecagemDeConclusão()
     print("==================== MENU ====================")
     print("1. Adicionar Materia ao Ciclo de Estudos") 
     print("2. Excluir Materia")
