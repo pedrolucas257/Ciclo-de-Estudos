@@ -80,15 +80,15 @@ def ExcluirMateriaDoBancoDeDados(nome_materia):
 
 
 def ChecandoDiaDaSemana():
-    hoje = dt.datetime.now().date()
     global ultima_atualizacao
-    ultima_atualizacao = hoje
+    hoje = dt.datetime.now().date()
     dia_da_semana = hoje.weekday()
     if dia_da_semana == 0 and ultima_atualizacao != hoje:
         for i in range(0,len(materias)):
             materias[i]["Estudadas"] = 0
             materias[i]["Concluida"] = False
             AtualizarMateriaNoBancoDeDados(materias[i])
+            ultima_atualizacao = hoje
 
 def AdicionarMateriasAoCicloDeEstudos():
     if len(materias) == 0:
